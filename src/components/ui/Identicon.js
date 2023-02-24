@@ -1,3 +1,4 @@
+import React from "react";
 import { useEffect, useRef } from "react";
 import Jazzicon from "@metamask/jazzicon";
 
@@ -14,8 +15,11 @@ export default function Identicon({ address, size, ...rest }) {
   }, [address, size]);
 
   return (
-    <div {...rest}>
-      <div ref={ref} style={{ width: `${size}px`, height: `${size}px` }} />
-    </div>
+     <div {...rest}>
+       <div ref={ref} style={{ width: `${size}px`, height: `${size}px` }} />
+     </div>
+
+    
+    
   );
 }
