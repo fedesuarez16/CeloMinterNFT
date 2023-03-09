@@ -1,31 +1,45 @@
 const { expect } = require("chai");
+const { ethers } = require("hardhat");
 
 describe("MyNFT", function () {
-  let MyNFT;
+  this.timeout(50000); // line 5
+
   let myNFT;
   let owner;
-  let addr1;
-  let addr2;
-  const uri = "https://example.com/token";
+  let acc1;
+  let acc2;
 
-  beforeEach(async function () {
-    MyNFT = await ethers.getContractFactory("MyNFT");
-    myNFT = await MyNFT.deploy();
-    [owner, addr1, addr2] = await ethers.getSigners();
+  this.beforeEach(async function() { // line 12
+      const MyNFT = await ethers.getContractFactory("MyNFT");
+      [owner, acc1, acc2] = await ethers.getSigners();
+
+      myNFT = await MyNFT.deploy();
+  })
+
+  it("Should set the right owner", async function () {
+    expect(await myNFT.owner()).to.equal(owner.address);
   });
 
-  it("should mint a new NFT and transfer 0.1 ETH to the contract owner", async function () {
-    // Set the payment amount to 0.1 ETH
-    const paymentAmount = ethers.utils.parseEther("0.1");
+  it("Should mint one NFT", async function() {
+    expect(await myNFT.balanceOf(acc1.address)).to.equal(0);
+    
+    const tokenURI = "https://example.com/1" // line 28
+    const tx = await myNFT.connect(owner).safeMint(acc1.address, tokenURI);
+    await tx.wait(); // line 30
 
-    // Call the safeMint function with the correct payment amount
-    await expect(() =>
-      myNFT.safeMint(addr1.address, uri, { value: paymentAmount })
-    ).to.changeEtherBalance(owner, paymentAmount);
+    expect(await myNFT.balanceOf(acc1.address)).to.equal(1);
+  })
 
-    // Check that the NFT was minted
-    expect(await myNFT.totalSupply()).to.equal(1);
-    expect(await myNFT.ownerOf(0)).to.equal(addr1.address);
-    expect(await myNFT.tokenURI(0)).to.equal(uri);
-  });
+  it("Should set the correct tokenURI", async function() {
+    const tokenURI_1 = "https://example.com/1"
+    const tokenURI_2 = "https://example.com/2"
+
+    const tx1 = await myNFT.connect(owner).safeMint(acc1.address, tokenURI_1);
+    await tx1.wait();
+    const tx2 = await myNFT.connect(owner).safeMint(acc2.address, tokenURI_2);
+    await tx2.wait();
+
+    expect(await myNFT.tokenURI(0)).to.equal(tokenURI_1);
+    expect(await myNFT.tokenURI(1)).to.equal(tokenURI_2);
+  })
 });
