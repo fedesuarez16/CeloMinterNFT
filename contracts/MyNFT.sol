@@ -31,7 +31,6 @@ contract MyNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable {
     _tokenIdCounter.increment();
     _safeMint(to, tokenId);
     _setTokenURI(tokenId, uri);
-    payable(owner()).transfer(msg.value);
 }
 
 function paymentSplitter() public view returns (address) {
