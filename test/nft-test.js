@@ -1,45 +1,59 @@
-const { expect } = require("chai");
+// Test file: test/MyNFT.test.js
+
 const { ethers } = require("hardhat");
+const { expect } = require("chai");
 
 describe("MyNFT", function () {
-  this.timeout(50000); // line 5
-
+  let MyNFT;
   let myNFT;
   let owner;
-  let acc1;
-  let acc2;
+  let addr1;
+  let addr2;
 
-  this.beforeEach(async function() { // line 12
-      const MyNFT = await ethers.getContractFactory("MyNFT");
-      [owner, acc1, acc2] = await ethers.getSigners();
+  beforeEach(async function () {
+    // Get the ContractFactory and Signers here.
+    MyNFT = await ethers.getContractFactory("MyNFT");
+    [owner, addr1, addr2] = await ethers.getSigners();
 
-      myNFT = await MyNFT.deploy();
-  })
-
-  it("Should set the right owner", async function () {
-    expect(await myNFT.owner()).to.equal(owner.address);
+    // Deploy the contract
+    myNFT = await MyNFT.deploy([addr1.address, addr2.address], [1, 1]);
+    await myNFT.deployed();
   });
 
-  it("Should mint one NFT", async function() {
-    expect(await myNFT.balanceOf(acc1.address)).to.equal(0);
-    
-    const tokenURI = "https://example.com/1" // line 28
-    const tx = await myNFT.connect(owner).safeMint(acc1.address, tokenURI);
-    await tx.wait(); // line 30
+  describe("mint", function () {
+    it("should set the right owner", async function () {
+      await myNFT.safeMint(addr1.address, "https://example.com/token/1");
+      expect(await myNFT.ownerOf(0)).to.equal(owner.address);
+    });
 
-    expect(await myNFT.balanceOf(acc1.address)).to.equal(1);
-  })
+    it("should increase the token ID counter", async function () {
+      const tokenIdBefore = await myNFT.tokenIdCounter();
+      await myNFT.safeMint(addr1.address, "https://example.com/token/1");
+      const tokenIdAfter = await myNFT.tokenIdCounter();
+      expect(tokenIdAfter).to.equal(tokenIdBefore.add(1));
+    });
 
-  it("Should set the correct tokenURI", async function() {
-    const tokenURI_1 = "https://example.com/1"
-    const tokenURI_2 = "https://example.com/2"
+    it("should set the token URI", async function () {
+      await myNFT.safeMint(addr1.address, "https://example.com/token/1");
+      expect(await myNFT.tokenURI(0)).to.equal("https://example.com/token/1");
+    });
 
-    const tx1 = await myNFT.connect(owner).safeMint(acc1.address, tokenURI_1);
-    await tx1.wait();
-    const tx2 = await myNFT.connect(owner).safeMint(acc2.address, tokenURI_2);
-    await tx2.wait();
+    it("should split the payment to payees", async function () {
+      const value = ethers.utils.parseEther("1");
+      await expect(() => myNFT.safeMint(addr1.address, "https://example.com/token/1", { value }))
+        .to.changeEtherBalances([owner, addr1, addr2], [value.div(2).mul(-1), value.div(2), value.div(2)]);
+    });
 
-    expect(await myNFT.tokenURI(0)).to.equal(tokenURI_1);
-    expect(await myNFT.tokenURI(1)).to.equal(tokenURI_2);
-  })
+    it("should revert when payment amount is incorrect", async function () {
+      const value = ethers.utils.parseEther("0.5");
+      await expect(myNFT.safeMint(addr1.address, "https://example.com/token/1", { value }))
+        .to.be.revertedWith("Payment amount is incorrect.");
+    });
+  });
+
+  describe("paymentSplitter", function () {
+    it("should return the payment splitter address", async function () {
+      expect(await myNFT.paymentSplitter()).to.equal((await ethers.getContractAt("PaymentSplitter", myNFT.paymentSplitter())).address);
+    });
+  });
 });
