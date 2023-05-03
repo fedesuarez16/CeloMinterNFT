@@ -13,8 +13,8 @@ const AddNfts = ({ save, address }) => {
     const [show, setShow] = useState(false);
 
     // check if all form data has been filled
-  const isFormFilled = () =>
-  name && ipfsImage && description && attributes.length > 2;
+  // const isFormFilled = () =>
+  // name && ipfsImage && description && attributes.length > 2;
 
   // close the popup modal
   const handleClose = () => {

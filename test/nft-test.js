@@ -1,59 +1,64 @@
-// Test file: test/MyNFT.test.js
-
+// Import the necessary Hardhat objects
 const { ethers } = require("hardhat");
 const { expect } = require("chai");
 
-describe("MyNFT", function () {
-  let MyNFT;
+// Start by defining the contract and some test variables
+describe("MyNFT contract", function () {
   let myNFT;
   let owner;
   let addr1;
   let addr2;
 
+  const uri1 = "https://example.com/nft/1";
+  const uri2 = "https://example.com/nft/2";
+
   beforeEach(async function () {
-    // Get the ContractFactory and Signers here.
-    MyNFT = await ethers.getContractFactory("MyNFT");
+    // Deploy the MyNFT contract and retrieve the owner address
+    const MyNFT = await ethers.getContractFactory("MyNFT");
+    myNFT = await MyNFT.deploy();
+    await myNFT.deployed();
     [owner, addr1, addr2] = await ethers.getSigners();
 
-    // Deploy the contract
-    myNFT = await MyNFT.deploy([addr1.address, addr2.address], [1, 1]);
-    await myNFT.deployed();
+    // Mint two NFTs to the owner's address
+    await myNFT.safeMint(owner.address, uri1);
+    await myNFT.safeMint(owner.address, uri2);
   });
 
-  describe("mint", function () {
-    it("should set the right owner", async function () {
-      await myNFT.safeMint(addr1.address, "https://example.com/token/1");
-      expect(await myNFT.ownerOf(0)).to.equal(owner.address);
-    });
-
-    it("should increase the token ID counter", async function () {
-      const tokenIdBefore = await myNFT.tokenIdCounter();
-      await myNFT.safeMint(addr1.address, "https://example.com/token/1");
-      const tokenIdAfter = await myNFT.tokenIdCounter();
-      expect(tokenIdAfter).to.equal(tokenIdBefore.add(1));
-    });
-
-    it("should set the token URI", async function () {
-      await myNFT.safeMint(addr1.address, "https://example.com/token/1");
-      expect(await myNFT.tokenURI(0)).to.equal("https://example.com/token/1");
-    });
-
-    it("should split the payment to payees", async function () {
-      const value = ethers.utils.parseEther("1");
-      await expect(() => myNFT.safeMint(addr1.address, "https://example.com/token/1", { value }))
-        .to.changeEtherBalances([owner, addr1, addr2], [value.div(2).mul(-1), value.div(2), value.div(2)]);
-    });
-
-    it("should revert when payment amount is incorrect", async function () {
-      const value = ethers.utils.parseEther("0.5");
-      await expect(myNFT.safeMint(addr1.address, "https://example.com/token/1", { value }))
-        .to.be.revertedWith("Payment amount is incorrect.");
+  // Test the token count
+  describe("getTokenCount()", function () {
+    it("should return 2", async function () {
+      expect(await myNFT.getTokenCount()).to.equal(2);
     });
   });
 
-  describe("paymentSplitter", function () {
-    it("should return the payment splitter address", async function () {
-      expect(await myNFT.paymentSplitter()).to.equal((await ethers.getContractAt("PaymentSplitter", myNFT.paymentSplitter())).address);
+  // Test the token URIs
+  describe("tokenURI()", function () {
+    it("should return the correct URI for each token", async function () {
+      expect(await myNFT.tokenURI(0)).to.equal(uri1);
+      expect(await myNFT.tokenURI(1)).to.equal(uri2);
+    });
+  });
+
+  // Test the setTokenURI function
+  describe("setTokenURI()", function () {
+    it("should allow the owner to update the token URI", async function () {
+      const newUri = "https://example.com/nft/3";
+      await myNFT.setTokenURI(0, newUri);
+      expect(await myNFT.tokenURI(0)).to.equal(newUri);
+    });
+
+    it("should not allow non-owners to update the token URI", async function () {
+      const newUri = "https://example.com/nft/3";
+      await expect(myNFT.connect(addr1).setTokenURI(0, newUri)).to.be.revertedWith(
+        "Ownable: caller is not the owner"
+      );
+    });
+
+    it("should revert if the token ID does not exist", async function () {
+      const newUri = "https://example.com/nft/3";
+      await expect(myNFT.setTokenURI(2, newUri)).to.be.revertedWith(
+        "Token ID does not exist"
+      );
     });
   });
 });
